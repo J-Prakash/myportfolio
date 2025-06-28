@@ -64,45 +64,163 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Form submission handling
-const contactForm = document.querySelector('.contact-form form');
+// Initialize EmailJS
+(function() {
+    emailjs.init("YOUR_EMAILJS_PUBLIC_KEY"); // Replace with your EmailJS public key
+})();
+
+// Enhanced form submission handling with EmailJS and modal
+const contactForm = document.querySelector('#contactForm');
 if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
+    contactForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         // Get form data
-        const formData = new FormData(contactForm);
-        const name = contactForm.querySelector('input[type="text"]').value;
-        const email = contactForm.querySelector('input[type="email"]').value;
-        const subject = contactForm.querySelector('input[placeholder="Subject"]').value;
-        const message = contactForm.querySelector('textarea').value;
+        const name = contactForm.querySelector('input[name="name"]').value;
+        const email = contactForm.querySelector('input[name="email"]').value;
+        const subject = contactForm.querySelector('input[name="subject"]').value;
+        const message = contactForm.querySelector('textarea[name="message"]').value;
         
         // Simple validation
         if (!name || !email || !subject || !message) {
-            alert('Please fill in all fields');
+            showNotification('Please fill in all fields', 'error');
             return;
         }
         
         // Email validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            alert('Please enter a valid email address');
+            showNotification('Please enter a valid email address', 'error');
             return;
         }
         
-        // Simulate form submission
+        // Show loading state
         const submitBtn = contactForm.querySelector('button[type="submit"]');
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Sending...';
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         submitBtn.disabled = true;
         
-        setTimeout(() => {
-            alert('Thank you for your message! I will get back to you soon.');
-            contactForm.reset();
-            submitBtn.textContent = originalText;
+        try {
+            // Send email using EmailJS
+            const templateParams = {
+                from_name: name,
+                from_email: email,
+                subject: subject,
+                message: message,
+                to_email: 'iamprakash524@gmail.com' // Your email address
+            };
+            
+            // Replace 'YOUR_SERVICE_ID' and 'YOUR_TEMPLATE_ID' with your actual EmailJS service and template IDs
+            const response = await emailjs.send('YOUR_SERVICE_ID', 'YOUR_TEMPLATE_ID', templateParams);
+            
+            if (response.status === 200) {
+                // Show success modal
+                showThankYouModal();
+                
+                // Reset form
+                contactForm.reset();
+            } else {
+                throw new Error('Failed to send email');
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Sorry, there was an error sending your message. Please try again or contact me directly.', 'error');
+        } finally {
+            submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
-        }, 2000);
+        }
     });
+}
+
+// Modal functions
+function showThankYouModal() {
+    const modal = document.getElementById('thankYouModal');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+}
+
+function closeModal() {
+    const modal = document.getElementById('thankYouModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto'; // Restore scrolling
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', (e) => {
+    const modal = document.getElementById('thankYouModal');
+    if (e.target === modal) {
+        closeModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeModal();
+    }
+});
+
+// Notification system
+function showNotification(message, type = 'info') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    // Add styles
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        max-width: 400px;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Close button functionality
+    const closeBtn = notification.querySelector('.notification-close');
+    closeBtn.addEventListener('click', () => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 5000);
 }
 
 // Typing animation for hero title
@@ -174,7 +292,7 @@ document.head.appendChild(style);
 
 // Animate elements on scroll
 const animateOnScroll = () => {
-    const elements = document.querySelectorAll('.project-card, .skill-category, .contact-item');
+    const elements = document.querySelectorAll('.project-card, .skill-category, .contact-item, .experience-card, .stat, .badge');
     
     elements.forEach(element => {
         const elementTop = element.getBoundingClientRect().top;
@@ -189,15 +307,28 @@ const animateOnScroll = () => {
 // Add animation CSS
 const animationStyle = document.createElement('style');
 animationStyle.textContent = `
-    .project-card, .skill-category, .contact-item {
+    .project-card, .skill-category, .contact-item, .experience-card, .stat, .badge {
         opacity: 0;
         transform: translateY(30px);
         transition: all 0.6s ease;
     }
     
-    .project-card.animate, .skill-category.animate, .contact-item.animate {
+    .project-card.animate, .skill-category.animate, .contact-item.animate, .experience-card.animate, .stat.animate, .badge.animate {
         opacity: 1;
         transform: translateY(0);
+    }
+    
+    .floating-shapes .shape {
+        animation: float 6s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+        }
+        50% {
+            transform: translateY(-20px) rotate(180deg);
+        }
     }
 `;
 document.head.appendChild(animationStyle);
@@ -249,6 +380,7 @@ backToTopBtn.style.cssText = `
     transition: all 0.3s ease;
     z-index: 1000;
     font-size: 1.2rem;
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
 `;
 
 document.body.appendChild(backToTopBtn);
@@ -275,10 +407,95 @@ backToTopBtn.addEventListener('click', () => {
 // Add hover effect for back to top button
 backToTopBtn.addEventListener('mouseenter', () => {
     backToTopBtn.style.background = '#1d4ed8';
-    backToTopBtn.style.transform = 'translateY(-2px)';
+    backToTopBtn.style.transform = 'translateY(-2px) scale(1.1)';
 });
 
 backToTopBtn.addEventListener('mouseleave', () => {
     backToTopBtn.style.background = '#2563eb';
-    backToTopBtn.style.transform = 'translateY(0)';
-}); 
+    backToTopBtn.style.transform = 'translateY(0) scale(1)';
+});
+
+// Add creative cursor effects
+document.addEventListener('DOMContentLoaded', () => {
+    const cursor = document.createElement('div');
+    cursor.className = 'custom-cursor';
+    cursor.style.cssText = `
+        position: fixed;
+        width: 20px;
+        height: 20px;
+        background: rgba(37, 99, 235, 0.5);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        transition: transform 0.1s ease;
+        mix-blend-mode: difference;
+    `;
+    document.body.appendChild(cursor);
+    
+    document.addEventListener('mousemove', (e) => {
+        cursor.style.left = e.clientX - 10 + 'px';
+        cursor.style.top = e.clientY - 10 + 'px';
+    });
+    
+    // Add hover effect for interactive elements
+    const interactiveElements = document.querySelectorAll('a, button, .experience-card, .project-card, .contact-item');
+    interactiveElements.forEach(element => {
+        element.addEventListener('mouseenter', () => {
+            cursor.style.transform = 'scale(2)';
+            cursor.style.background = 'rgba(37, 99, 235, 0.8)';
+        });
+        
+        element.addEventListener('mouseleave', () => {
+            cursor.style.transform = 'scale(1)';
+            cursor.style.background = 'rgba(37, 99, 235, 0.5)';
+        });
+    });
+});
+
+// Add particle effects to hero section
+function createParticles() {
+    const hero = document.querySelector('.hero');
+    if (!hero) return;
+    
+    for (let i = 0; i < 50; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.cssText = `
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-float ${3 + Math.random() * 4}s linear infinite;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+        `;
+        hero.appendChild(particle);
+    }
+}
+
+// Add particle animation CSS
+const particleStyle = document.createElement('style');
+particleStyle.textContent = `
+    @keyframes particle-float {
+        0% {
+            transform: translateY(100vh) rotate(0deg);
+            opacity: 0;
+        }
+        10% {
+            opacity: 1;
+        }
+        90% {
+            opacity: 1;
+        }
+        100% {
+            transform: translateY(-100px) rotate(360deg);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(particleStyle);
+
+// Initialize particles
+document.addEventListener('DOMContentLoaded', createParticles); 
